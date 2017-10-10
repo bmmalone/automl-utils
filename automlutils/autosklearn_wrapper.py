@@ -6,13 +6,12 @@ logger = logging.getLogger(__name__)
 
 import collections
 
+import numpy as np
 import joblib
 import sklearn.preprocessing
 
 import statsmodels.stats.weightstats
 
-from autosklearn.regression import AutoSklearnRegressor
-from autosklearn.classification import AutoSklearnClassifier
 
 from automlutils import automl_utils
 
@@ -118,6 +117,45 @@ class AutoSklearnWrapper(object):
     include many functions related to the Bayesian optimization which are not
     relevant after the parameters of the ensemble have been fit. Thus, outside
     of the fit method, there is no need to keep it around.
+
+    Parameters
+    ----------
+    ensemble_: an asl_wrapper ensemble (two-tupe of weights and pipelines)
+        In case a desired ensemble already exists, it can be passed in.
+
+    autosklearn_optimizer: an AutoSklearnClassifier or AutoSklearnRegressor
+        In case an optimizer is created outside this class, it can be directly
+        passed in.
+
+    estimator_named_step: "classifier" or "regressor"
+        Whether this wrapper will be for classification or regression.
+        Specifically, this value is used to determine which optimizer to
+        create and the name of the estimator step in the learned pipelines.
+
+    args: argparse.Namespace
+        A namespace containing the options from
+        `automlutils.automl_command_line_utils`. If present, these are used
+        as defaults for the respect asl optimizer.
+
+    le_: label encoder
+        An `sklearn.preprocessing.LabelEncoder` for the target variable, if one
+        has been fit externally.
+
+    metric: `autosklearn.metrics.Scorer`
+        An optional scorer. By default, accuracy is used for classification and
+        RMSE for regression.
+
+    custom_pipeline: function pointer with a single parameter, `self`
+        Optionally, the respective `_get_pipeline` function can be overwritten
+        when creating the asl optimizer. This should return something
+        compatible with `autosklearn`. In particular, the steps of the pipeline
+        should implement `get_properties` and
+        `get_hyperparameter_search_space`. If this is provided, then no
+        `initial_configurations_via_metalearning` will be used.
+
+        N.B. The `custom_pipeline` is fairly brittle as it involves monkey
+        patching. It should be considered highly experimental.
+
     """
 
     def __init__(self,
@@ -126,7 +164,8 @@ class AutoSklearnWrapper(object):
             estimator_named_step=None,
             args=None,
             le_=None,
-            metric=None):
+            metric=None,
+            custom_pipeline=None):
 
         msg = ("[asl_wrapper]: initializing a wrapper. ensemble: {}. "
             "autosklearn: {}" .format(ensemble_, autosklearn_optimizer))
@@ -137,6 +176,7 @@ class AutoSklearnWrapper(object):
         self.autosklearn_optimizer = autosklearn_optimizer
         self.estimator_named_step = estimator_named_step
         self.metric = metric
+        self.custom_pipeline = custom_pipeline
         self.le_ = le_
 
     def create_classification_optimizer(self, args, **kwargs):        
@@ -163,13 +203,26 @@ class AutoSklearnWrapper(object):
 
         kwargs: key=value pairs
             Additional options for creating the autosklearn classifier
+
         Returns
         -------
         self
         """
+        from autosklearn.classification import AutoSklearnClassifier
+        from autosklearn.pipeline.classification import SimpleClassificationPipeline
 
         args_dict = args.__dict__
         args_dict.update(kwargs)
+
+        # check if we have a new pipeline
+        initial_configurations_via_metalearning = 25 # the standard asl default
+        if self.custom_pipeline is not None:
+            msg = "[asl_wrapper]: attempting to change classification pipeline"
+            logger.debug(msg)
+
+            initial_configurations_via_metalearning = 0
+            SimpleClassificationPipeline._get_pipeline = self.custom_pipeline
+
 
         asl_classification_optimizer = AutoSklearnClassifier(
             time_left_for_this_task=args_dict.get('total_training_time', None),
@@ -178,7 +231,8 @@ class AutoSklearnWrapper(object):
             ensemble_nbest=args_dict.get('ensemble_nbest', None),
             seed=args_dict.get('seed', None),
             include_estimators=args_dict.get('estimators', None),
-            tmp_folder=args_dict.get('tmp', None)
+            tmp_folder=args_dict.get('tmp', None),
+            initial_configurations_via_metalearning=initial_configurations_via_metalearning
         )
 
         self.autosklearn_optimizer = asl_classification_optimizer
@@ -215,6 +269,20 @@ class AutoSklearnWrapper(object):
         -------
         self
         """
+        from autosklearn.regression import AutoSklearnRegressor
+        from autosklearn.pipeline.regression import SimpleRegressionPipeline
+
+        args_dict = args.__dict__
+        args_dict.update(kwargs)
+
+        # check if we have a new pipeline
+        initial_configurations_via_metalearning = None
+        if self.custom_pipeline is not None:
+            msg = "[asl_wrapper]: attempting to change regression pipeline"
+            logger.debug(msg)
+            
+            initial_configurations_via_metalearning = 0
+            SimpleRegressionPipeline._get_pipeline = self.custom_pipeline
 
         args_dict = args.__dict__
         args_dict.update(kwargs)
@@ -226,7 +294,8 @@ class AutoSklearnWrapper(object):
             ensemble_nbest=args_dict.get('ensemble_nbest', None),
             seed=args_dict.get('seed', None),
             include_estimators=args_dict.get('estimators', None),
-            tmp_folder=args_dict.get('tmp', None)
+            tmp_folder=args_dict.get('tmp', None),
+            initial_configurations_via_metalearning=initial_configurations_via_metalearning
         )
 
         self.autosklearn_optimizer = asl_regression_optimizer
@@ -253,7 +322,7 @@ class AutoSklearnWrapper(object):
                 logger.debug(msg)
 
                 self.create_regression_optimizer(self.args)
-            else:
+            elif self.estimator_named_step == 'classifier':
                 msg = ("[asl_wrapper]: creating an autosklearn classification "
                     "optimizer")
                 logger.debug(msg)
@@ -274,6 +343,12 @@ class AutoSklearnWrapper(object):
                     self.le = sklearn.preprocessing.LabelEncoder()
                     self.le_ = self.le
                     self.le_.classes = np.unique(y.columns)
+
+            else:
+                msg = ("[asl_wrapper]: the valid `estimator_named_step`s are: "
+                    "[\"regressor\", \"classifier\"], but found: {}".format(
+                    self.estimator_named_step))
+                raise ValueError(msg)
 
         elif self.autosklearn_optimizer is None:
             msg = ("[asl_wrapper]: have neither args nor an autosklearn "
