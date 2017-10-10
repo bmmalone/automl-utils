@@ -23,12 +23,14 @@ setup(name='automlutils',
             'scikit-learn',
             'statsmodels',
             'matplotlib',
+            'seaborn',
             'pandas',
             'networkx',
             'docopt',
             'tqdm',
             'joblib',
             'graphviz',
+            'fancyimpute',
             'misc', # handled by requirements.txt 
             'auto-sklearn', # handled by requirements.txt
             'aslib_scenario' # handled by requirements.txt
