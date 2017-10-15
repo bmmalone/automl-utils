@@ -26,6 +26,51 @@ def add_imputer(imputer):
 
 
 class ImputerChoice(AutoSklearnChoice):
+    
+    @staticmethod
+    def get_imputer(imputer_name, dataset_properties=None):
+        """ Retrieve an object for use in an autosklearn pipeline by name
+
+        N.B. The imputer will be created with default parameters passed to
+        the constructor. If desired, hese can be updated later using, for
+        example, `set_params`.
+
+        Parameters
+        ----------
+        imputer_name: string
+            Either `choice` or the short name of one of the registered components
+
+        dataset_properties: dict or None
+            The dataset properties. This is used to determine which of the
+            concrete imputers are valid.
+
+        Returns
+        -------
+        imputer: either an ImputerChoice or autoSklearnImputationAlgorithm
+            The specified imputer
+        """
+        imputer_choice = ImputerChoice(dataset_properties=dataset_properties)
+
+        if imputer_name == "choice":
+            imputer = imputer_choice
+        else:
+            components = imputer_choice.get_components()
+
+            # make sure we know it
+            if imputer_name not in components:
+                choices = ' '.join(components.keys())
+                msg = ("[ImputerChoice]: the specified imputer name is not "
+                    "recognized: {}. choices: {}".format(imputer_name, choices))
+                raise ValueError(msg)
+
+            # then get the pointer to the class
+            imputer = components[imputer_name]
+
+            # and create one of them
+            imputer = imputer()
+
+        return imputer
+
 
     def get_components(self):
         components = OrderedDict()
@@ -112,3 +157,153 @@ class ImputerChoice(AutoSklearnChoice):
         if not m_missing.any():
             return X
         return self.choice.transform(X)
+
+    @staticmethod
+    def get_regression_pipeline(imputer_name, init_params=None):
+        """ Construct a regression pipeline suitable for use with `autosklearn` 
+        using the specified imputer
+
+        Parameters
+        ----------
+        imputer_name: string
+            The name of the imputer. The valid choices are the short names, such
+            as "knn" or "matrix_factorization", of the imputer components, or
+            "choice", in which case an `ImputerChoice` is used.
+
+        init_params: dictionary
+            Initialization parameters for the various choice objects. Currently,
+            the supported parameters are:
+
+                * `init_params['one_hot_encoding']['categorical_features']`
+                    The features which will one hot encoded. Please see the
+                    documentation for `sklearn.preprocessing.OneHotEncoder` for
+                    more details.
+
+        Returns
+        -------
+        steps: list of `autosklearn` compatible steps
+            The steps of the regression pipeline
+
+        Example::
+                
+            custom_pipeline = functools.partial(
+                asl_fancyimpute.get_imputer_regression_pipeline,
+                imputer_name=imputer_name
+            )
+
+            asl_regressor = AutoSklearnWrapper(
+                args=args,
+                custom_pipeline=custom_pipeline,
+                estimator_named_step='regressor'
+            )
+        """
+        
+        from autosklearn.pipeline.components.regression import RegressorChoice
+        from autosklearn.pipeline.components.data_preprocessing.rescaling import RescalingChoice
+        from autosklearn.pipeline.components.data_preprocessing.one_hot_encoding.one_hot_encoding import OneHotEncoder
+        from autosklearn.pipeline.components.feature_preprocessing import FeaturePreprocessorChoice
+            
+        from automlutils.asl_fancyimpute import ImputerChoice
+        
+        default_dataset_properties = {'target_type': 'regression'}
+
+        # Add the always active preprocessing components
+        if init_params is not None and 'one_hot_encoding' in init_params:
+            ohe_init_params = init_params['one_hot_encoding']
+            if 'categorical_features' in ohe_init_params:
+                categorical_features = ohe_init_params['categorical_features']
+        else:
+            categorical_features = None
+            
+        ohe = OneHotEncoder(categorical_features=categorical_features)
+        imputer = ImputerChoice.get_imputer("knn", dataset_properties=default_dataset_properties)
+        rescaling = RescalingChoice(default_dataset_properties)
+        preprocessor = FeaturePreprocessorChoice(default_dataset_properties)
+        regressor = RegressorChoice(default_dataset_properties)
+
+        steps = [
+            ["one_hot_encoding", ohe],
+            ["imputation", imputer],
+            ["rescaling", rescaling],
+            ["preprocessor", preprocessor],
+            ["regressor", regressor]
+        ]
+
+        return steps
+
+    @staticmethod
+    def get_classification_pipeline(imputer_name, init_params=None):
+        """ Construct a classification pipeline suitable for use with `autosklearn` 
+        using the specified imputer
+
+        Parameters
+        ----------
+        imputer_name: string
+            The name of the imputer. The valid choices are the short names, such
+            as "knn" or "matrix_factorization", of the imputer components, or
+            "choice", in which case an `ImputerChoice` is used.
+
+        init_params: dictionary
+            Initialization parameters for the various choice objects. Currently,
+            the supported parameters are:
+
+                * `init_params['one_hot_encoding']['categorical_features']`
+                    The features which will one hot encoded. Please see the
+                    documentation for `sklearn.preprocessing.OneHotEncoder` for
+                    more details.
+
+        Returns
+        -------
+        steps: list of `autosklearn` compatible steps
+            The steps of the regression pipeline
+
+        Example::
+                
+            custom_pipeline = functools.partial(
+                ImputerChoice.get_classification_pipeline,
+                imputer_name=imputer_name
+            )
+
+            asl_classifier = AutoSklearnWrapper(
+                args=args,
+                custom_pipeline=custom_pipeline,
+                estimator_named_step='classifier'
+            )
+        """
+        
+        from autosklearn.pipeline.components.data_preprocessing.one_hot_encoding.one_hot_encoding import OneHotEncoder
+        from autosklearn.pipeline.components.data_preprocessing.balancing.balancing import Balancing
+        from autosklearn.pipeline.components.data_preprocessing.rescaling import RescalingChoice
+        from autosklearn.pipeline.components.feature_preprocessing import FeaturePreprocessorChoice
+        from autosklearn.pipeline.components.classification import ClassifierChoice
+            
+            
+        from automlutils.asl_fancyimpute import ImputerChoice
+        
+        default_dataset_properties = {'target_type': 'classification'}
+
+        # Add the always active preprocessing components
+        if init_params is not None and 'one_hot_encoding' in init_params:
+            ohe_init_params = init_params['one_hot_encoding']
+            if 'categorical_features' in ohe_init_params:
+                categorical_features = ohe_init_params['categorical_features']
+        else:
+            categorical_features = None
+            
+        ohe = OneHotEncoder(categorical_features=categorical_features)
+        imputer = ImputerChoice.get_imputer("knn", dataset_properties=default_dataset_properties)
+        rescaling = RescalingChoice(default_dataset_properties)
+        balancing = Balancing()
+        preprocessor = FeaturePreprocessorChoice(default_dataset_properties)
+        classifier = ClassifierChoice(default_dataset_properties)
+
+        steps = [
+            ["one_hot_encoding", ohe],
+            ["imputation", imputer],
+            ["rescaling", rescaling],
+            ["balancing", balancing],
+            ["preprocessor", preprocessor],
+            ["classifier", classifier]
+        ]
+
+        return steps
