@@ -531,7 +531,8 @@ class AutoSklearnWrapper(object):
             'estimator_named_step': self.estimator_named_step,
             'args': self.args,
             "le_": self.le_,
-            'metric': self.metric
+            'metric': self.metric,
+            'custom_pipeline': self.custom_pipeline
         }
         return params
 
@@ -554,11 +555,15 @@ class AutoSklearnWrapper(object):
         if 'metric' in parameters:
             self.metric = parameters.pop('metric')
 
+        if 'custom_pipeline' in parameters:
+            self.custom_pipeline = parameters.pop('custom_pipeline')
+
         return self
 
 
     def __getstate__(self):
         """ Returns everything to be pickled """
+        # TODO: custom_pipeline
         state = {}
         state['args'] = self.args
         state['autosklearn_optimizer'] = self.autosklearn_optimizer
@@ -571,6 +576,7 @@ class AutoSklearnWrapper(object):
 
     def __setstate__(self, state):
         """ Re-creates the object after pickling """
+        # TODO: custom_pipeline
         self.args = state['args']
         self.autosklearn_optimizer = state['autosklearn_optimizer']
         self.estimator_named_step = state['estimator_named_step']
