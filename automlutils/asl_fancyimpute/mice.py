@@ -8,8 +8,14 @@ from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class MICE(AutoSklearnImputationAlgorithm):
     
-    def __init__(self, visit_sequence, n_imputations, n_burn_in, impute_type,
-            n_pmm_neighbors, init_fill_method, random_state=None):
+    def __init__(self,
+            visit_sequence='monotone',
+            n_imputations=10,
+            n_burn_in=10,
+            impute_type='col',
+            n_pmm_neighbors=10,
+            init_fill_method='mean',
+            random_state=None):
     
         self.visit_sequence = visit_sequence
         self.n_imputations = n_imputations

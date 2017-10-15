@@ -8,7 +8,9 @@ from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class NuclearNormMinimization(AutoSklearnImputationAlgorithm):
     
-    def __init__(self, require_symmetric_solution, fast_but_approximate,
+    def __init__(self,
+            require_symmetric_solution=True,
+            fast_but_approximate=True,
             random_state=None):
 
         self.require_symmetric_solution = require_symmetric_solution

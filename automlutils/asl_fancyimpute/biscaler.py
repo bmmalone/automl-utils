@@ -8,7 +8,11 @@ from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class BiScaler(AutoSklearnImputationAlgorithm):
     
-    def __init__(self, center_rows, center_columns, scale_rows, scale_columns,
+    def __init__(self,
+            center_rows=True,
+            center_columns=True,
+            scale_rows=True,
+            scale_columns=True,
             random_state=None):
 
         self.center_rows = center_rows

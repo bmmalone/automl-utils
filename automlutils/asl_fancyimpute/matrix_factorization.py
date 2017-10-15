@@ -13,7 +13,12 @@ import automlutils.automl_utils as automl_utils
 from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class MatrixFactorization(AutoSklearnImputationAlgorithm):
-    def __init__(self, rank, learning_rate, l1_penalty, l2_penalty,
+
+    def __init__(self,
+            rank=10,
+            learning_rate=0.001,
+            l1_penalty=0.001,
+            l2_penalty=0.001,
             random_state=None):
 
         self.rank = rank

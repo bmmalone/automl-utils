@@ -8,7 +8,10 @@ from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class IterativeSVD(AutoSklearnImputationAlgorithm):
     
-    def __init__(self, rank, gradual_rank_increase, init_fill_method,
+    def __init__(self,
+            rank=10,
+            gradual_rank_increase=True,
+            init_fill_method='zero',
             random_state=None):
 
         self.rank = rank

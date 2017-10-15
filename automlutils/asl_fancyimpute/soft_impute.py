@@ -8,7 +8,10 @@ from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class SoftImpute(AutoSklearnImputationAlgorithm):
     
-    def __init__(self, max_rank, n_power_iterations, init_fill_method,
+    def __init__(self,
+            max_rank=10,
+            n_power_iterations=1,
+            init_fill_method='zero',
             random_state=None):
     
         self.max_rank = max_rank

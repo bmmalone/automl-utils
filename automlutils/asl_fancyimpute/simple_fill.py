@@ -8,7 +8,10 @@ from autosklearn.pipeline.constants import *
 from automlutils.asl_fancyimpute.base import AutoSklearnImputationAlgorithm
 
 class SimpleFill(AutoSklearnImputationAlgorithm):
-    def __init__(self, fill_method, random_state=None):
+    def __init__(self,
+            fill_method='zero',
+            random_state=None):
+
         self.fill_method = fill_method
         self.random_state = random_state
         
