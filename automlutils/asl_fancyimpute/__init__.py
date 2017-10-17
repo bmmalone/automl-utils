@@ -118,9 +118,8 @@ class ImputerChoice(AutoSklearnChoice):
             include=include, exclude=exclude)
 
         if len(available_imputers) == 0:
-            raise ValueError(
-                "No imputers found, please add SimpleFill")
-            
+            msg = "No imputers found, please add SimpleFill"
+            raise ValueError(msg)
         
         if default is None:
             defaults = ['simple_fill', 'knn']
@@ -216,7 +215,7 @@ class ImputerChoice(AutoSklearnChoice):
             categorical_features = None
             
         ohe = OneHotEncoder(categorical_features=categorical_features)
-        imputer = ImputerChoice.get_imputer("knn", dataset_properties=default_dataset_properties)
+        imputer = ImputerChoice.get_imputer(imputer_name, dataset_properties=default_dataset_properties)
         rescaling = RescalingChoice(default_dataset_properties)
         preprocessor = FeaturePreprocessorChoice(default_dataset_properties)
         regressor = RegressorChoice(default_dataset_properties)
@@ -291,7 +290,7 @@ class ImputerChoice(AutoSklearnChoice):
             categorical_features = None
             
         ohe = OneHotEncoder(categorical_features=categorical_features)
-        imputer = ImputerChoice.get_imputer("knn", dataset_properties=default_dataset_properties)
+        imputer = ImputerChoice.get_imputer(imputer_name, dataset_properties=default_dataset_properties)
         rescaling = RescalingChoice(default_dataset_properties)
         balancing = Balancing()
         preprocessor = FeaturePreprocessorChoice(default_dataset_properties)
