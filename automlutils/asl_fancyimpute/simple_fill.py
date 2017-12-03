@@ -26,13 +26,33 @@ class SimpleFill(AutoSklearnImputationAlgorithm):
         if self.imputer is None:
             raise NotImplementedError("The SimpleFill imputer was not fit")
 
+        ###
+        # make sure we have numpy floats. we might not in cases where
+        # the original data matrix contains mixed types (categorical and
+        # numeric types)
+        #
+        # See this SO comment for more details:
+        #   https://stackoverflow.com/questions/18557337/numpy-attributeerror-float-object-has-no-attribute-exp#comment27300354_18557337
+        ###
+        X = X.astype(float)
+
         # check if we are already complete
         m_missing = np.isnan(X)
         if not m_missing.any():
             return X
+
+        # in case we are given a single column, make sure we still work
+        reshape = False
+        if len(X.shape) == 1:
+            X = np.atleast_2d(X)
+            X = X.transpose()
+            reshape = True
         
         X_filled = self.imputer.complete(X)
-        
+
+        if reshape:
+            X_filled = X_filled.ravel()
+
         return X_filled
         
     @staticmethod
