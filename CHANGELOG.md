@@ -4,6 +4,10 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/), 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.0.2] - In progress
+- Utilities for working with the ConfigSpace package, which specificies a
+    hyperparameter search space for SMAC.
+
 ## [0.0.1] - 2017-10-09
 
 This initial commit contains the contents of the `automl_utils` module from the
