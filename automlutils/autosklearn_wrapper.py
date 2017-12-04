@@ -382,7 +382,7 @@ class AutoSklearnWrapper(object):
             logger.debug(msg)
             
             # we need a helper to retrieve the reference to the asl_optimizer
-            def _dask_fit(e, X, y, m, args, c, h):
+            def _dask_fit(e, X, y, m, args, c):
 
                 #### TODO ###
                 # AT THIS POINT, when calling from dask, asl retrieves the "standard"
@@ -405,6 +405,16 @@ class AutoSklearnWrapper(object):
 
                     msg = ("[asl_wrapper]: creating a new optimizer for dask "
                         "with custom pipeline: {}".format(c))
+                    print(msg)
+
+                    msg = ("[asl_wrapper]: asl.pipeline: {}".format(autosklearn.pipeline.classification.SimpleClassificationPipeline))
+                    print(msg)
+                    
+                    #msg = ("[asl_wrapper]: asl.util.pipeline: {}".format(autosklearn.util.pipeline.SimpleClassificationPipeline))
+                    #print(msg)
+
+                    import os
+                    msg = ("[asl_wrapper]: pid: {}".format(os.getpid()))
                     print(msg)
 
                     args_dict = args.__dict__
@@ -437,8 +447,7 @@ class AutoSklearnWrapper(object):
                 y,
                 self.metric,
                 self.args,
-                self.custom_pipeline,
-                self.custom_hyperparameter_search_space
+                self.custom_pipeline
             )
         else:
             self.autosklearn_optimizer.fit(X_train, y, metric=self.metric)
