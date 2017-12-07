@@ -157,10 +157,6 @@ class AutoSklearnWrapper(object):
         N.B. The `custom_pipeline` is fairly brittle as it involves monkey
         patching. It should be considered highly experimental.
 
-    custom_hyperparameter_search_space: function pointer with four parameters:
-            `self`, `include`, `exclude`, `dataset_properties`
-        A function which gives the hyperparameter search space for the custom
-        pipeline.
 
     """
 
@@ -173,7 +169,7 @@ class AutoSklearnWrapper(object):
             le_=None,
             metric=None,
             custom_pipeline=None,
-            custom_hyperparameter_search_space=None):
+            custom_pipeline_attributes=None):
 
         msg = ("[asl_wrapper]: initializing a wrapper. ensemble: {}. "
             "autosklearn: {}" .format(ensemble_, autosklearn_optimizer))
@@ -186,7 +182,7 @@ class AutoSklearnWrapper(object):
         self.estimator_named_step = estimator_named_step
         self.metric = metric
         self.custom_pipeline = custom_pipeline
-        self.custom_hyperparameter_search_space = custom_hyperparameter_search_space
+        self.custom_pipeline_attributes = custom_pipeline_attributes
         self.le_ = le_
 
     def create_classification_optimizer(self, args, **kwargs):        
@@ -230,6 +226,11 @@ class AutoSklearnWrapper(object):
             msg = "[asl_wrapper]: attempting to change classification pipeline"
             logger.debug(msg)
             print(msg)
+
+            # set any extra attributes we have
+            if self.custom_pipeline_attributes is not None:
+                for attr, value in self.custom_pipeline_attributes.items():
+                    setattr(self.custom_pipeline, attr, value)
 
             initial_configurations_via_metalearning = 0
 
@@ -300,7 +301,6 @@ class AutoSklearnWrapper(object):
             
             initial_configurations_via_metalearning = 0
             SimpleRegressionPipeline._get_pipeline = self.custom_pipeline
-            SimpleRegressionPipeline._get_hyperparameter_search_space = self.custom_hyperparameter_search_space
 
         args_dict = args.__dict__
         args_dict.update(kwargs)
@@ -376,52 +376,68 @@ class AutoSklearnWrapper(object):
         msg = ("[asl_wrapper]: fitting a wrapper with metric: {}".format(
             self.metric))
         logger.debug(msg)
+                    
+        from ep.asl.asl_ep_classification_pipeline import AslEpClassificationPipeline
+
+        msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(AslEpClassificationPipeline.static_ep_template))
+        print(msg)
+
 
         if self.dask_client is not None:
             msg = ("[asl_wrapper]: submitting training to the dask client")
             logger.debug(msg)
             
             # we need a helper to retrieve the reference to the asl_optimizer
-            def _dask_fit(e, X, y, m, args, c):
+            def _dask_fit(
+                    optimizer,
+                    X, y,
+                    metric,
+                    args,
+                    custom_pipeline,
+                    custom_pipeline_attributes):
 
-                #### TODO ###
-                # AT THIS POINT, when calling from dask, asl retrieves the "standard"
-                # hyperparameter search space, while the searchspace from the custom
-                # pipeline is passed in. asl finds this discrepancy and quits.
-                #
-                # The relevant code is in asl/pipeline/base.py and
-                # asl/pipeline/classification.py
+                if custom_pipeline is not None:
+
+                    custom_pipeline.attributes = custom_pipeline_attributes
 
 
-                if c is not None:
+                    print("[asl_wrapper._dask_fit] hasattr(custom_pipeline, \"attributes\"): {}".format(hasattr(custom_pipeline, "attributes")))
+
+                    
+                    # set any extra attributes we have
+                    if custom_pipeline_attributes is not None:
+                        for attr, value in custom_pipeline_attributes.items():
+                            setattr(custom_pipeline, attr, value)
+
+                    # TODO regression: we can check estimator_named_step
                     from autosklearn.classification import AutoSklearnClassifier
                     import autosklearn.pipeline.classification
                     import autosklearn.util.pipeline
 
                     scp = autosklearn.pipeline.classification.SimpleClassificationPipeline
 
-                    autosklearn.pipeline.classification.SimpleClassificationPipeline = c
-                    autosklearn.util.pipeline.SimpleClassificationPipeline = c
+                    autosklearn.pipeline.classification.SimpleClassificationPipeline = custom_pipeline
+                    autosklearn.util.pipeline.SimpleClassificationPipeline = custom_pipeline
 
-                    msg = ("[asl_wrapper]: creating a new optimizer for dask "
-                        "with custom pipeline: {}".format(c))
+                    msg = ("[asl_wrapper._dask_fit]: creating a new optimizer for dask "
+                        "with custom pipeline: {}".format(custom_pipeline))
                     print(msg)
 
-                    msg = ("[asl_wrapper]: asl.pipeline: {}".format(autosklearn.pipeline.classification.SimpleClassificationPipeline))
+                    msg = ("[asl_wrapper._dask_fit]: asl.pipeline: {}".format(autosklearn.pipeline.classification.SimpleClassificationPipeline))
+                    print(msg)
+
+                    msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(custom_pipeline.static_ep_template))
                     print(msg)
                     
-                    #msg = ("[asl_wrapper]: asl.util.pipeline: {}".format(autosklearn.util.pipeline.SimpleClassificationPipeline))
-                    #print(msg)
-
                     import os
-                    msg = ("[asl_wrapper]: pid: {}".format(os.getpid()))
+                    msg = ("[asl_wrapper._dask_fit]: pid: {}".format(os.getpid()))
                     print(msg)
 
                     args_dict = args.__dict__
 
                     initial_configurations_via_metalearning = 0
 
-                    e = AutoSklearnClassifier(
+                    optimizer = AutoSklearnClassifier(
                         time_left_for_this_task=args_dict.get('total_training_time', None),
                         per_run_time_limit=args_dict.get('iteration_time_limit', None),
                         ensemble_size=args_dict.get('ensemble_size', None),
@@ -433,12 +449,14 @@ class AutoSklearnWrapper(object):
                     )
 
 
-                print("[asl_wrapper._dask_fit]: calling fit on the esimator")
+                print("[asl_wrapper._dask_fit]: calling fit on the optimizer")
 
-                e.fit(X, y, metric=m)
+                optimizer.fit(X, y, metric=metric)
 
-                print("[asl_wrapper._dask_fit]: returning the estimator")
-                return e
+                print("[asl_wrapper._dask_fit]: returning the optimizer")
+                return optimizer
+
+            print("[asl_wrapper] hasattr(custom_pipeline, \"attributes\"): {}".format(hasattr(self.custom_pipeline, "attributes")))
 
             self.dask_future = self.dask_client.submit(
                 _dask_fit,
@@ -447,7 +465,8 @@ class AutoSklearnWrapper(object):
                 y,
                 self.metric,
                 self.args,
-                self.custom_pipeline
+                self.custom_pipeline,
+                self.custom_pipeline_attributes
             )
         else:
             self.autosklearn_optimizer.fit(X_train, y, metric=self.metric)
