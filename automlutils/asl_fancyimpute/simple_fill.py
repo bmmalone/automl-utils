@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import numpy as np
 
 from ConfigSpace.configuration_space import ConfigurationSpace
@@ -41,12 +44,35 @@ class SimpleFill(AutoSklearnImputationAlgorithm):
         if not m_missing.any():
             return X
 
+        msg = ("[simple_fill] num_missing: {}".format(np.sum(m_missing)))
+        #print(msg)
+        logger.debug(msg)
+
+        # check if *everything* is missing
+        if m_missing.all():
+            # and our fill_method is 'zero'
+            if self.fill_method == 'zero':
+                msg = ("[simple_fill] everything was missing. returning 0s")
+                logger.debug(msg)
+
+                # in this case, just return all 0s
+                X[m_missing] = 0
+                return X
+            else:
+                # TODO: what to do here?
+                pass
+
         # in case we are given a single column, make sure we still work
         reshape = False
         if len(X.shape) == 1:
             X = np.atleast_2d(X)
             X = X.transpose()
             reshape = True
+
+
+        #msg = ("[simple_fill] X: {}".format(X))
+        #print(msg)
+
         
         X_filled = self.imputer.complete(X)
 

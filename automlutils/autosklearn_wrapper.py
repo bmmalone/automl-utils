@@ -426,8 +426,8 @@ class AutoSklearnWrapper(object):
                     msg = ("[asl_wrapper._dask_fit]: asl.pipeline: {}".format(autosklearn.pipeline.classification.SimpleClassificationPipeline))
                     print(msg)
 
-                    msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(custom_pipeline.static_ep_template))
-                    print(msg)
+                    #msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(custom_pipeline.static_ep_template))
+                    #print(msg)
                     
                     import os
                     msg = ("[asl_wrapper._dask_fit]: pid: {}".format(os.getpid()))
