@@ -377,10 +377,10 @@ class AutoSklearnWrapper(object):
             self.metric))
         logger.debug(msg)
                     
-        from ep.asl.asl_ep_classification_pipeline import AslEpClassificationPipeline
+        #from ep.asl.asl_ep_classification_pipeline import AslEpClassificationPipeline
 
-        msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(AslEpClassificationPipeline.static_ep_template))
-        print(msg)
+        #msg = ("[asl_wrapper._dask_fit]: AslEp.static_ep_template: {}".format(AslEpClassificationPipeline.static_ep_template))
+        #print(msg)
 
 
         if self.dask_client is not None:
